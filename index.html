@@ -17,6 +17,7 @@
   <script type="text/javascript" src="lib/topojson.v2.min.js"></script>
   <script type="text/javascript" src="lib/d3-tip.min.js"></script>
   <script type="text/javascript" src="lib/d3-legend.min.js"></script>
+  <script type="text/javascript" src="lib/d3-geo-scale-bar.min.js"></script>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"
     integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
@@ -34,12 +35,12 @@
 
   <style>
     body {
-      margin: 40px;
+      margin: 25px;
       color: black;
     }
 
     #visualization_help li {
-      margin-top: 20px;
+      margin-top: 15px;
     }
 
     small {
@@ -49,6 +50,10 @@
     .data_value {
       margin-left: 25px;
       display: inline-block;
+    }
+
+    .item-not-visible {
+      display: none !important;
     }
 
     /* Source: https://www.w3schools.com/css/css_tooltip.asp */
@@ -92,54 +97,169 @@
   <h1 style="color: #0e95ef;">San Francisco: Where to build a new fire station?</h1>
 
   <!-- https://gridbyexample.com/examples/example16/ -->
-  <div class="wrapper container-fixed" style="padding-top: 50px;">
-    <table>
-      <tr>
-        <td style="min-width: 500px; vertical-align: top;">
-          <div class="shadow" style="padding: 20px 10px;">
-            <b style="font-size: 18pt; padding-right: 5px;"><i style="font-size: 20pt;"
-                class="fa-solid fa-sliders-h"></i> Current Visualization:</b>
-            <select style="font-size: 14pt;">
-              <option>New Firestation Simulation</option>
+  <div class="wrapper container-fixed" style="padding-top: 25px;">
+    <div class="row">
+      <div class="col-4">
+        <div id="visualization_help_container" class="row shadow" style="padding: 20px 10px 10px;">
+          <div style="text-align: center; font-size: 16pt;">
+            <b style="padding-right: 5px;"><i class="fa-solid fa-sliders"></i> Current Visualization:</b>
+            <select id="dropdown" style="font-size: 12pt;">
+              <option value="sim">New Fire Station Simulation</option>              
+              <option value="demand">Number of Daily Fire Incidents</option>
             </select>
-            <div id="controls_spatial_accessibility" style="padding: 20px 10px;">
-              <div id="visualization_help" style="font-size: 14pt; max-width: 600px;">
-                <i class="fa-solid fa-circle-question" style="color: blue; font-size: 20px;"></i>
-                <span style="color: blue;">How to use this visualization:</span>
-                <ul>
-                  <li>This visualization allows you to <b>simulate</b> the placement of a new fire station in San
-                    Francisco. <small>The visualization uses the results of the Kernel Density Estimation and the
-                      Two-Step Floating Catchment Area (2SFCA) algorithm.</small></li>
-                  <li><b>Hover</b> over the map to see the estimated area the fire station could respond to in under 5
-                    minutes, if a new station is placed in that area.
-                    <br><small>The estimated area shown is sourced from the BingMaps API. Note that proximity to
-                      interstates and highways will greatly affect the size and shape of this area.</small>
-                  </li>
-                  <li><b>Click</b> the map to simulate placing a fire station at that location.
-                    <small>The size of the impact (colors) is determined by the 2SFCA algorithm. The data is precomputed
-                      in the Python notebooks created for this project.</small>
+          </div>
+          <div id="controls_spatial_accessibility" style="padding: 15px 10px 0px;">
+            <div id="visualization_help" style="font-size: 12pt;">
+              <i class="fa-solid fa-circle-question" style="color: blue; font-size: 18px;"></i>
+              <span style="color: blue;">How to use this visualization
+                <span class="simple_tooltip sim-legend-item">
+                  (more info)
+                  <span class="tooltiptext" style="width:600px; padding: 10px;">
+                    <p>Red areas of the map have low spatial accessibility.  Practically, this means that the number of fire units
+                    available to respond per-incident is low.  When there are simultaneous fire incidents, these areas may require units
+                    from much farther away to respond, delaying a potentially life-saving response. Naively, <b>optimal placement</b> of a new fire station
+                    would minimize the amount of red on the map (i.e. more even spatial accessibility).  However, this must also be combined
+                    with domain-expertise about current challenges facing the fire department.</p>
+                    <p>In placing a new station, one large consideration is the area that it can cover in less than 5 minutes.
+                       85% of 2019 fire responses had a unit on scene in less than 5 minutes.  When hovering over the map to place a new simulated station,
+                       the estimated area that can be covered in less than 5 minutes is shown.  Note that proximity to highways, local traffic density,
+                       street conditions (e.g. single lane streets), and terrain (e.g. hills etc) will greatly impact the size of this area.
+                    </p>
+                    <p>
+                      For existing fire stations, hovering over the map shows the number of fire stations within 5 minutes in <i>Data for location</i> at
+                       the top of the map (as estimated from 2019 data via the KDE).
+                    </p>
+                  </span>
+                </span>:
+              </span>
+              <ul style="padding-left: 10px;">
+                <li class="demand-legend-item item-not-visible">
+                  This visualization shows the daily rates of fire department incidents in San Francisco.  A "fire department incident" is any incident
+                  that a fire engine or fire truck responded to. Each grid square represents about 1/3rd of a mile squared.
+                </li>
+                <li class="sim-legend-item">This visualization allows you to <b>simulate</b> the placement of a new fire station in San
+                  Francisco. <small>The visualization displays the results of the Two-Step Floating Catchment Area (2SFCA) algorithm,
+                    both on the observed data and after adding a simulated firestation at the specified location.</small></li>
+                <li class="sim-legend-item"><b>Hover</b> over the map to see the estimated area the new fire station could respond to within 5
+                  minutes, if a new station is placed in that area.
+                  <small>The estimated area shown is sourced from the BingMaps API. Note that proximity to
+                    interstates and highways will greatly affect the size and shape of this area.</small>
+                </li>
+                <li class="sim-legend-item"><b>Click an empty location</b> on the map to simulate placing a fire station at that location.
+                  <small>The size of the impact (colors) is determined by the 2SFCA algorithm. The data is precomputed
+                    in the Python notebooks created for this project.</small>
+                  <br>
+                </li>
+                <li><b>Click an existing fire station</b> (<span style="color: red; font-size: 10pt;">&#9679;</span>) to see the area 
+                  that its fire units can reliabily reach within 5 minutes.
+                  <small>The size and shape of this area is determined via Kernel Density Estimation.  The size and shape of the area is 
+                  greatly influenced by proximity to major highways and traffic conditions.  Long and skinny protrusions from 
+                  shapes show the impact that highways and interstates have.  The estimates shown on the map are used as an important input into the 2SFCA algorithm,
+                  to determine whether the stations in an area are "spread thin" relative to the fire incident demand. </small>
+                  <br>
+                </li>
+              </ul>
+            </div>
+            <div id="simulation_controls" style="display: none">
+                <b>Simulation Type</b>
+                <form class="border" style="padding: 10px 10px;">
+                    <input type="radio" name="simulation_type" value="sa" checked>
+                    <label>Spatial Accessibility</label>
                     <br>
-                  </li>
-                </ul>
+                    <input type="radio" name="simulation_type" value="rt">
+                    <label>Response Time</label>
+                </form>
+            </div>
+            <button id="reset_fca" style="font-size: 14pt; float: right; margin-top: 10px"><i class="fa-solid fa-undo"
+                style="font-size: 20px;"></i> Reset Simulation</button>
+          </div>
+        </div>
+        <div id="visualization_legend_container" class="row shadow" style="margin-top: 20px; padding: 10px 10px;">
+          <div style="text-align: center; font-size: 16pt;">
+            <b style="padding-right: 5px;"><i style="font-size: 20pt;" class="fa-solid fa-map"></i> Map
+            Legend</b>
+          </div>
+          <div class="container-fluid" id="visualization_legend" style="font-size: 12pt; padding: 10px;">
+            <div class="row" style="padding: 5px;">
+              <div class="col-6" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <circle r="8" fill="red" cx="8" cy="8"></circle>
+                </svg>
+                <text style="padding-left: 5px;">Existing Fire Station</text>
               </div>
-              <br />
-              <button id="reset_fca" style="font-size: 14pt; float: right;"><i class="fa-solid fa-undo"
-                  style="font-size: 20px;"></i> Reset Visualization</button>
+              <div class="col-6 sim-legend-item" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <circle r="8" fill="blue" cx="8" cy="8"></circle>
+                </svg>
+                <text style="padding-left: 5px;">Simulated Fire Station</text>
+              </div>
+            </div>
+            <div class="row" style="padding: 5px;">
+              <div class="col-6" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <rect height="16" width="16" fill="lightblue"></rect>
+                </svg>
+                <text style="padding-left: 5px;">Existing Fire Station Coverage</text>
+                <br>
+                <text style="padding-left: 5px;">(&lt;= 5 minute travel time)</text>
+                <br>
+                <small>click fire station to show</small>
+              </div>
+              <div class="col-6 sim-legend-item" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <rect height="16" width="16" fill="rgb(196, 141, 221)"></rect>
+                </svg>
+                <text style="padding-left: 5px;">Simulated Fire Station Coverage</text><br>
+                <text style="padding-left: 5px;">(&lt;= 5 minute travel time)</text>
+              </div>
+            </div>
+            <div class="row" style="padding-top: 20px;">
+              <div class="col-12" style="padding-right: 0">
+                <text id="color_scale_type_label" style="font-size: 14pt; font-weight: bold;">Spatial Accessibility (2SFCA):</text>
+              </div>
+            </div>
+            <div class="row" style="padding-top: 10px;">
+              <div class="col-12" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <rect height="16" width="16" fill="rgb(44,150,0)"></rect>
+                </svg>
+                <text id="color_legend_high_label" style="padding-left: 5px;"></text>
+              </div>
+            </div>
+            <div class="row" style="padding-top: 10px;">
+              <div class="col-12" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <rect height="16" width="16" fill="rgb(239,230,100)"></rect>
+                </svg>
+                <text id="color_legend_med_label" style="padding-left: 5px;"></text>
+              </div>
+            </div>
+            <div class="row" style="padding-top: 10px;">
+              <div class="col-12" style="padding-right: 0">
+                <svg height="16" width="16">
+                  <rect height="16" width="16" fill="rgb(239,107,100)"></rect>
+                </svg>
+                <text id="color_legend_low_label" style="padding-left: 5px;"></text>
+              </div>
+            </div>
+            <div class="row" style="padding-top: 10px;">
+              <div class="col-12 sim-legend-item" style="padding-right: 0">
+                <span style="font-size: 12px">+00%</span>
+                <span style="padding-left: 5px;">Change in spatial accessibilty due to simulated firestation at location.</span>
+              </div>
             </div>
           </div>
-          <div class="shadow" style="margin-top: 20px; padding: 10px 10px;">
-            <b style="font-size: 18pt; padding-right: 5px;"><i style="font-size: 20pt;" class="fa-solid fa-map"></i> Map
-              Legend</b>
-            <div id="visualization_legend"></div>
-          </div>
-        </td>
-        <td>
-          <div id="visualization" class="shadow" style="margin-left: 20px; width: 1300px; padding: 20px 0px;">
-            <div style="padding-left: 50px;">
+        </div>
+      </div>
+      <div id="visualization_container" class="col-8">
+        <div id="visualization" class="shadow" style="margin-left: 20px; padding: 20px 0px;">
+          <div class="container-fluid">
+            <div class="row">
               <b style="font-size: 12pt; padding-right: 5px;"><i style="font-size: 12pt;"
-                  class="fa-solid fa-mouse-pointer"></i> Data for location</b><small>(based on 2019)</small>
-              <br>
-              <div class="data_value">
+                class="fa-solid fa-mouse-pointer"></i> Data for location</b><small>(based on 2019)</small>
+            </div>
+            <div class="row">
+              <div class="col data_value" style="font-size: 10pt;">
                 # Daily fire incidents
                 <small class="simple_tooltip">
                   (info)
@@ -150,20 +270,21 @@
                 </small>:
                 <span id="daily_fire_incidents" class="val">-</span>
               </div>
-              <div class="data_value">
+              <div class="col data_value" style="font-size: 10pt;">
                 # Fire stations within 5 minutes
                 <small class="simple_tooltip">
                   (info)
                   <span class="tooltiptext">
                     Number of fire stations that can respond with a truck or engine within 5 minutes.
                     This is provided by kernel density estimates for each fire station to understand the geographic
-                    region
-                    each can respond to in under 5 minutes (with high probability).
+                    region each can respond to within 5 minutes (with high probability).
+                    This is <b>not updated to include the simulation value</b>, but if the grid square is affected by the simulation
+                    (and has a +00% icon), you can add 1 to see the effect.
                   </span>
                 </small>:
                 <span id="num_fire_stations" class="val">-</span>
               </div>
-              <div class="data_value">
+              <div class="col data_value" style="font-size: 10pt;">
                 # Fire stations per incident
                 <small class="simple_tooltip">
                   (info)
@@ -173,29 +294,30 @@
                 </small>:
                 <span id="num_fire_stations_vs_incidents" class="val">-</span>
               </div>
-              <br>
-              <div class="data_value">
+            </div>
+            <div class="row sim-legend-item">
+              <div class="col data_value" style="font-size: 10pt;">
                 Spatial Accessibility (current)
                 <small class="simple_tooltip">
                   (info)
                   <span class="tooltiptext">
-                    Results of the 2SFCA algorithm.  Unlike the ratio of fire stations to incidents, this 
-                    estimate considers if nearby zones ALSO have high incident rates and therefore fewer fire stations are available to respond.                    
+                    Results of the 2SFCA algorithm.  Unlike the ratio of fire stations to incidents, this
+                    estimate considers if nearby zones ALSO have high incident rates and therefore fewer fire stations are available to respond.
                   </span>
                 </small>:
                 <span id="accessibility_score" class="val">-</span>
               </div>
-              <div class="data_value">
+              <div class="col data_value" style="font-size: 10pt;">
                 Spatial Accessibility (new)
                 <small class="simple_tooltip">
                   (info)
                   <span class="tooltiptext">
-                    Results of the 2SFCA algorithm applied to the simulation, when a new fire station is placed in the selected square. 
+                    Results of the 2SFCA algorithm applied to the simulation, when a new fire station is placed in the selected square.
                   </span>
                 </small>:
                 <span id="accessibility_score_sim" class="val">-</span>
               </div>
-              <div class="data_value">
+              <div class="col data_value" style="font-size: 10pt;">
                 % increase spatial accessibility
                 <small class="simple_tooltip">
                   (info)
@@ -206,518 +328,17 @@
                 <span id="accessibility_score_increase" class="val">-</span>
               </div>
             </div>
-
           </div>
-        </td>
-      </tr>
-    </table>
+
+        </div>
+      </div>
+    </div>
   </div>
   </div>
 
 
   <!-- d3 code below -->
-  <script>
-
-    //const svg = d3.select("#map")            
-    const svg = d3
-      .select("#visualization")
-      .append("svg")
-      .attr("id", "map")
-      .attr("height", "1000")
-      .attr("width", "1200")
-      .attr("style", "background-color: e5f0f9; margin-left: 50px;")
-
-    const svgLegend = d3
-      .select("#visualization_legend")
-      .append("svg")
-      .attr("height", "300")
-      .attr("width", "600")
-
-    // create the map layers
-    const baseMap = svg.append("g").attr("id", "base_map");
-    const facilities = svg.append("g").attr("id", "facilities");
-    const mapGrid = svg.append("g").attr("id", "map_grid");
-    const mapLegend = svg.append("g").attr("id", "map_legend");
-    const simulationFacility = svg.append("g").attr("id", "simulation_facility");
-
-    Promise.all([
-      d3.json("data/sf_neighborhoods.geojson"),
-      d3.json("data/grid_definitions.geojson"),
-      d3.json("data/current_fire_stations.geojson"),
-      d3.dsv(",", "data/baseline_fca_output.csv"),
-      d3.dsv(",", "data/travel_time.csv"),
-      d3.dsv(",", "data/simulation_fca_output.csv"),
-      d3.dsv(",", "data/demand_data.csv"),
-      d3.dsv(",", "data/supply_data.csv")
-    ]).then(function (data) {
-
-      const sfMapData = data[0];
-      const mapGridData = data[1];
-      const sfFacilityData = data[2];
-      const baselineFcaOutput = data[3];
-      const travelTime = data[4];
-      const simulationFcaOutput = preprocessSimulationData(data[5]);
-      const demandData = data[6];
-      const supplyData = data[7];
-
-      const mapCtx = setupMap(sfMapData);
-
-      function drawMap() {
-        facilities.selectAll("*").remove();
-        mapGrid.selectAll("*").remove();
-        mapLegend.selectAll("*").remove();
-        simulationFacility.selectAll("*").remove();
-
-        drawSimulationLegend();
-
-        refreshData(mapCtx, {
-          sfFacilityData: sfFacilityData,
-          mapGridData: mapGridData,
-          baselineFcaOutput: baselineFcaOutput,
-          travelTime: travelTime,
-          simulationFcaOutput: simulationFcaOutput,
-          demandData: demandData,
-          supplyData: supplyData
-        });
-      }
-
-      $("#reset_fca").click(function (evt) {
-        drawMap();
-      });
-      drawMap();
-    });
-
-    function drawSimulationLegend() {
-      svgLegend.selectAll("*").remove();
-
-      const fireSymbol = svgLegend
-        .append("circle")
-        .attr("r", "10")
-        .attr("fill", "red")
-        .attr("cx", "30")
-        .attr("cy", "30")
-
-      const fireLabel = svgLegend
-        .append("text")
-        .attr("x", "50")
-        .attr("y", "35")
-        .attr("style", "font-size: 14pt;")
-        .text("Existing fire station")
-
-      const simSymbol = svgLegend
-        .append("circle")
-        .attr("r", "10")
-        .attr("fill", "purple")
-        .attr("cx", "300")
-        .attr("cy", "30")
-
-      const simLabel = svgLegend
-        .append("text")
-        .attr("x", "325")
-        .attr("y", "35")
-        .attr("style", "font-size: 14pt;")
-        .text("New fire station (simulated point)")
-
-      const simAreaSymbol = svgLegend
-        .append("rect")
-        .attr("width", "20")
-        .attr("height", "20")
-        .attr("fill", "rgb(196, 141, 221)")
-        .attr("x", "290")
-        .attr("y", "60")
-
-      const simAreaLabel = svgLegend
-        .append("text")
-        .attr("x", "325")
-        .attr("y", "70")
-        .attr("style", "font-size: 14pt;")
-        .text("New fire station coverage area")
-
-      const simAreaLabel2 = svgLegend
-        .append("text")
-        .attr("x", "325")
-        .attr("y", "90")
-        .attr("style", "font-size: 12pt;")
-        .text("(<= 5 minute travel time)")
-
-      const spatialYOffset = 130;
-
-      const spatialLabel = svgLegend
-        .append("text")
-        .attr("x", "20")
-        .attr("y", (spatialYOffset + 0) + "")
-        .text("Spatial Accessibility (2SFCA):")
-        .attr("style", "font-size: 14pt; font-weight: bold;")
-
-      const colorLegendHigh = svgLegend
-        .append("rect")
-        .attr("width", "20")
-        .attr("height", "20")
-        .attr("x", "40")
-        .attr("y", (spatialYOffset + 15) + "")
-        .attr("fill", "rgb(44,150,0)")
-
-      const highLabel = svgLegend
-        .append("text")
-        .attr("x", "70")
-        .attr("y", (spatialYOffset + 30) + "")
-        .attr("style", "font-size: 12pt;")
-        .text("High # of available fire units per incident")
-
-      const colorLegendMid = svgLegend
-        .append("rect")
-        .attr("width", "20")
-        .attr("height", "20")
-        .attr("x", "40")
-        .attr("y", (spatialYOffset + 50) + "")
-        .attr("fill", "rgb(239,230,100)")
-
-      const midLabel = svgLegend
-        .append("text")
-        .attr("x", "70")
-        .attr("y", (spatialYOffset + 65) + "")
-        .attr("style", "font-size: 12pt;")
-        .text("Avg # of available fire units per incident")
-
-      const colorLegendLow = svgLegend
-        .append("rect")
-        .attr("width", "20")
-        .attr("height", "20")
-        .attr("x", "40")
-        .attr("y", (spatialYOffset + 85) + "")
-        .attr("fill", "rgb(239,107,100)")
-
-      const lowLabel = svgLegend
-        .append("text")
-        .attr("x", "70")
-        .attr("y", (spatialYOffset + 100) + "")
-        .attr("style", "font-size: 12pt;")
-        .text("Low # of available fire units per incident")
-    }
-
-    function preprocessSimulationData(simulationData) {
-      let simulations = {};
-      simulationData.forEach(x => {
-        const simName = x.scenario_name;
-        if (!(simName in simulations)) {
-          simulations[simName] = [];
-        }
-        simulations[simName].push(x);
-      });
-      return simulations;
-    }
-
-    /*
-      Rather than precomputing everything for everywhere the user could click, this function
-      uses "partial application" (in the functional programming sense) to compute values "just-in-time".      
-    */
-    function createTooltipDataProcessor(baselineFcaOutput, simulationFcaOutput, demandDataRaw, supplyDataRaw) {
-
-      // shallow copy the data, and merge it all together
-      const allData = Object.assign({}, simulationFcaOutput);
-      allData["baseline"] = baselineFcaOutput;
-
-      // process the demand data into a lookup table w/ numeric values
-      const demandData = {};
-      demandDataRaw.forEach(demandRow => {
-        demandData[demandRow.zone_idx] = Number.parseFloat(demandRow.number_of_calls);
-      });
-
-      const supplyData = {};
-      supplyDataRaw.forEach(supplyRow => {
-        supplyData[supplyRow.zone_idx] = Number.parseFloat(supplyRow.num_stations_in_5minute_range);
-      });
-
-      // use partial application to create a tooltip processor for the scenario
-      // the first selects the scenario, the second displays the data for the point 
-      return (scenarioName) => {
-
-        if (!(scenarioName in allData)) {
-          return (zoneIdx) => "<no data>";
-        }
-
-        const selectedScenarioData = allData[scenarioName];
-        const currentScenarioTooltip = {};
-        selectedScenarioData.forEach((scenarioRow) => {
-          currentScenarioTooltip[scenarioRow.zone_idx] = {
-            "incidentsPerDay": demandData[scenarioRow.zone_idx] / 365.0,
-            "availableUnits": supplyData[scenarioRow.zone_idx],
-            "accessibilityScore": Number.parseFloat(scenarioRow.accessibility_score)
-          }
-        });
-
-        // return a function which can use the data we just precomputed
-        return (zoneIdx) => currentScenarioTooltip[zoneIdx];
-      }
-    }
-
-    function refreshData(mapCtx, data) {
-      const facilities = drawFacilities(mapCtx, data.sfFacilityData);
-      const gridDrawer = setupGridDrawer(mapCtx, data.mapGridData, data.baselineFcaOutput);
-      const mapGridCells = gridDrawer(data.baselineFcaOutput);
-      const toolTipDataProcessor = createTooltipDataProcessor(
-        data.baselineFcaOutput,
-        data.simulationFcaOutput,
-        data.demandData,
-        data.supplyData);
-
-      setupEventHandlers(mapCtx, data, mapGridCells, gridDrawer, toolTipDataProcessor);
-    }
-
-    function setupMap(geoObj) {
-
-      const projection = d3.geoEquirectangular()
-      projection.fitExtent(
-        [
-          [0, 0],
-          [1200, 1000],
-        ],
-        geoObj
-      )
-      const path = d3.geoPath().projection(projection)
-
-      const scale = baseMap.append("g")
-
-      const scaleOffsetY = 50
-      const scaleOffsetX = 50
-
-      scale.append("rect")
-        .attr("width", "140")
-        .attr("height", "2.5")
-        .attr("x", (scaleOffsetX + 0) + "")
-        .attr("y", (scaleOffsetY + 15) + "")
-        .attr("fill", "gray")
-
-      scale.append("rect")
-        .attr("width", "2.5")
-        .attr("height", "35")
-        .attr("x", (scaleOffsetX + 0) + "")
-        .attr("y", (scaleOffsetY + 0) + "")
-        .attr("fill", "gray")
-
-      scale.append("rect")
-        .attr("width", "2.5")
-        .attr("height", "35")
-        .attr("x", (scaleOffsetX + 140) + "")
-        .attr("y", (scaleOffsetY + 0) + "")
-        .attr("fill", "gray")
-
-      scale.append("text")
-        .attr("x", (scaleOffsetX + 40) + "")
-        .attr("y", (scaleOffsetY + 5) + "")
-        .attr("fill", "gray")
-        .text("one mile")
-
-      baseMap.selectAll("path")
-        .data(geoObj.features)
-        .enter()
-        .append("path")
-        .attr("d", (feature) => path(feature))
-        .attr("fill", "white")
-        .attr("stroke", "gray")
-
-      return {
-        projection: projection,
-        path: path
-      }
-    }
-
-    function drawFacilities(mapCtx, facilityData) {
-
-      return facilities.selectAll("path")
-        .data(facilityData.features)
-        .enter()
-        .append("path")
-        .attr("d", (feature) => mapCtx.path(feature))
-        .attr("fill", "red")
-        .attr("stroke", "red")
-    }
-
-    function setupGridDrawer(mapCtx, gridDefinition, initialGridValues) {
-
-      const valMin = d3.min(initialGridValues, x => Number.parseFloat(x.accessibility_score));
-      const valMax = d3.max(initialGridValues, x => Number.parseFloat(x.accessibility_score));
-      const valMid = d3.mean(initialGridValues, x => Number.parseFloat(x.accessibility_score));
-
-      const colorScale = d3.scaleLinear()
-        .domain([valMin, valMid, valMax])
-        .range(["red", "yellow", "green"]);
-
-      // closure scoped
-      var isFirstDraw = true;
-      var mapGridCells = null;
-
-      function gridDrawer(redrawGridValues) {
-
-        if (!redrawGridValues) {
-          redrawGridValues = initialGridValues
-        }
-
-        const valLookup = {}
-        redrawGridValues.forEach(x => {
-          valLookup[x.zone_idx] = x.accessibility_score;
-        })
-
-        if (isFirstDraw) {
-          mapGridCells = mapGrid.selectAll("path")
-            .data(gridDefinition.features)
-            .enter()
-            .append("path")
-            .attr("d", (feature) => mapCtx.path(feature))
-            .attr("fill-opacity", "0.25")
-            .attr("id", (feature) => {
-              return "zone_idx_" + feature.properties.zone_idx;
-            })
-            .attr("fill", (feature) => {
-              const zoneIdx = feature.properties.zone_idx + "";
-              const zoneVal = valLookup[zoneIdx];
-              if (!zoneVal) {
-                return "white";
-              }
-              else {
-                return colorScale(zoneVal);
-              }
-            });
-          isFirstDraw = false;
-        } else {
-          for (let zoneIdx in valLookup) {
-            let currVal = valLookup[zoneIdx];
-            currVal = (currVal > valMax) ? valMax : currVal;
-            currVal = (currVal < valMin) ? valMin : currVal;
-            d3.select("#zone_idx_" + zoneIdx)
-              .attr("fill", colorScale(currVal));
-          }
-        }
-
-        return mapGridCells;
-      }
-
-      return gridDrawer;
-    }
-
-    function updateSimTooltips(tooltipData, simulationTooltipData) {
-      if (tooltipData) {
-        $("#daily_fire_incidents").text(Math.ceil(tooltipData.incidentsPerDay))
-        $("#num_fire_stations").text(tooltipData.availableUnits)
-        $("#num_fire_stations_vs_incidents").text((tooltipData.incidentsPerDay / tooltipData.availableUnits).toFixed(2))
-        $("#accessibility_score").text(tooltipData.accessibilityScore.toFixed(6))
-        if (simulationTooltipData) {
-          $("#accessibility_score_sim").text(simulationTooltipData.accessibilityScore.toFixed(6))
-          $("#accessibility_score_increase").text(
-            "+" + (100.0 * simulationTooltipData.accessibilityScore / tooltipData.accessibilityScore - 100).toFixed(1) + "%");
-        }
-      }
-      else {
-        $("#daily_fire_incidents").text("-")
-        $("#num_fire_stations").text("-")
-        $("#num_fire_stations_vs_incidents").text("-")
-        $("#accessibility_score").text("-")
-        $("#accessibility_score_sim").text("-")
-        $("#accessibility_score_increase").text("-")
-      }
-    }
-
-    function setupEventHandlers(mapCtx, data, mapGridCells, gridDrawer, toolTipDataProcessor) {
-
-      const travelTimeLookup = {};
-      const originalColors = {};
-      const travelTime = data.travelTime;
-      const simulationData = data.simulationFcaOutput;
-
-      const currentTooltipProcessor = toolTipDataProcessor("baseline");
-      let simulationTooltipProcessor = null;
-
-      // build a lookup structure for each grid cell indicating which other cells can
-      // be traveled to within 5 minutes
-      travelTime.forEach((r) => {
-        if (!(r.selected_zone in travelTimeLookup)) {
-          travelTimeLookup[r.selected_zone + ""] = [];
-        }
-        travelTimeLookup[r.selected_zone + ""].push(r.covered_zone);
-      });
-
-      function resetColors() {
-        let processedKeys = [];
-        for (k in originalColors) {
-          d3.select(k).attr("fill", originalColors[k])
-          processedKeys.push(k);
-        }
-        processedKeys.forEach(k => delete originalColors[k])
-      }
-
-      $("#reset_fca").click(function (evt) {
-        simulationTooltipProcessor = null;
-        $("#accessibility_score_sim").text("-")
-        $("#accessibility_score_increase").text("-")
-      });
-
-
-      mapGridCells.on("click", (x) => {
-        const zoneIdx = x.properties.zone_idx + "";
-        const simulationKey = "new_station_" + zoneIdx;
-
-        resetColors();
-        if (simulationKey in simulationData) {
-          gridDrawer(simulationData[simulationKey]);
-        }
-
-        const clickCoords = {
-          x: d3.event.layerX,
-          y: d3.event.layerY
-        }
-
-        simulationFacility.selectAll("*").remove();
-
-        simulationFacility
-          .append("circle")
-          .attr("cx", clickCoords.x)
-          .attr("cy", clickCoords.y)
-          .attr("fill", "purple")
-          .attr("r", 10)
-
-        // create a new tooltip processor for our scenario
-        simulationTooltipProcessor = toolTipDataProcessor(simulationKey);
-        // populate the tooltip
-        const tooltipData = currentTooltipProcessor(zoneIdx) || false;
-        const simulationTooltipData = (simulationTooltipProcessor != null)? 
-          (simulationTooltipProcessor(zoneIdx) || false)
-          : false;      
-        updateSimTooltips(tooltipData, simulationTooltipData);
-
-      }).on("mouseover", (x) => {
-
-        resetColors();
-
-        const zoneIdx = x.properties.zone_idx + "";
-        d3.select("#zone_idx_" + zoneIdx).attr("stroke", "black");
-
-        // color the 5 minute travel time cells
-        if (zoneIdx in travelTimeLookup) {
-          const elementsToColor = travelTimeLookup[zoneIdx].map(x => "#zone_idx_" + x);
-          // store the original colors
-          elementsToColor.forEach(x => {
-            originalColors[x] = d3.select(x).attr("fill");
-          })
-          // update to be colored for the response area
-          d3.selectAll(elementsToColor.join(","))
-            .attr("fill", "purple");
-        }
-
-        // populate the tooltip
-        const tooltipData = currentTooltipProcessor(zoneIdx) || false;
-        const simulationTooltipData = (simulationTooltipProcessor != null)? 
-          (simulationTooltipProcessor(zoneIdx) || false)
-          : false;      
-        updateSimTooltips(tooltipData, simulationTooltipData);
-
-      }).on("mouseout", (x) => {
-        let zoneIdx = x.properties.zone_idx + "";
-        d3.select("#zone_idx_" + zoneIdx).attr("stroke", "none");
-        resetColors();
-      });
-    }
-
-  </script>
+<script src="map_vis.js?v=1.0"></script>
 
 </body>
 
