@@ -482,8 +482,8 @@ function setupEventHandlers(mapCtx, data, mapGridCells, gridDrawer, toolTipDataP
             }
 
             const clickCoords = {
-                x: d3.event.layerX,
-                y: d3.event.layerY
+                x: d3.event.offsetX,
+                y: d3.event.offsetY
             }
 
             simulationFacility.selectAll("*").remove();
