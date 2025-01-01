@@ -3,7 +3,7 @@
 
 ## Purpose
 
-This tool uses geospatial statistics to estimate the current coverage areas of fire stations in San Francisco.  You can simulate building a new first station, and see the impact on the response times.  The response time impact is generated from real traffic data (although it is cached and not queried in real-time).
+This tool uses geospatial statistics to estimate the current coverage areas of fire stations in San Francisco.  You can simulate building a new fire station, and see the impact on the response times.  The response time impact is generated from real traffic data (although it is cached and not queried in real-time).
 
 * Click [here](https://mma-fsa.github.io/SF-Fire-Data/) to visit the page and run the simulation in your browser.
 
